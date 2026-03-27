@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Georgia Kept — Sara Palmer / ECDS</title>
+<meta name="description" content="One afternoon with DPLA's bulk export and an AI that kept hitting CORS errors. An interactive analysis of 1.1 million metadata records from the Digital Library of Georgia — format composition over time, digitization lag by institution, and eight items from the archive itself.">
+<meta name="author" content="Sara Palmer, Emory Center for Digital Scholarship">
+<meta name="keywords" content="DPLA, Digital Library of Georgia, digital humanities, data visualization, archival metadata, digitization, D3.js, academic libraries">
+<meta property="og:title" content="What Georgia Kept">
+<meta property="og:description" content="One afternoon with DPLA's bulk export and an AI that kept hitting CORS errors. An interactive analysis of 1.1 million metadata records from the Digital Library of Georgia — format composition, digitization lag, and eight items from the archive.">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://dlg.galileo.usg.edu/do-th:aar_alabamaphoto_6285">
+<meta property="article:author" content="Sara Palmer">
+<meta property="article:published_time" content="2026-03-26">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="What Georgia Kept">
+<meta name="twitter:description" content="One afternoon with DPLA's bulk export and an AI that kept hitting CORS errors. An interactive analysis of 1.1 million metadata records from the Digital Library of Georgia.">
+<meta name="twitter:image" content="https://dlg.galileo.usg.edu/do-th:aar_alabamaphoto_6285">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Source+Code+Pro:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #f4f0e8;
+  --bg2:      #edeae0;
+  --ink:      #1a1510;
+  --ink-mid:  #3d3428;
+  --ink-dim:  #6b5e4a;
+  --rule:     #c0b49e;
+  --rule-lt:  #d8d0c0;
+  --accent:   #8b3a0f;
+  --gold:     #b8860b;
+  --teal:     #1e5c5c;
+  --max-w:    960px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+/* ── LAYOUT ── */
+.container {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.full-bleed {
+  width: 100%;
+  background: var(--bg2);
+  border-top: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+}
+
+/* ── MASTHEAD ── */
+.masthead {
+  padding: 3.5rem 0 2.5rem;
+  border-bottom: 3px solid var(--ink);
+}
+
+.masthead-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 2rem;
+}
+
+.pub-line {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 1rem;
+}
+
+.report-title {
+  font-size: 3.2rem;
+  font-weight: 700;
+  line-height: 1.0;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.7rem;
+}
+
+.report-title em {
+  font-style: italic;
+  font-weight: 400;
+  color: var(--accent);
+}
+
+.report-byline {
+  font-size: 1rem;
+  font-style: italic;
+  color: var(--ink-mid);
+  margin-bottom: 0.4rem;
+}
+
+.report-sub {
+  font-size: 0.8rem;
+  font-family: 'Source Code Pro', monospace;
+  color: var(--ink-dim);
+  letter-spacing: 0.04em;
+}
+
+/* ── SECTIONS ── */
+section {
+  padding: 3rem 0;
+  border-bottom: 1px solid var(--rule-lt);
+}
+
+.section-label {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 0.6rem;
+}
+
+.section-num {
+  color: var(--accent);
+  margin-right: 0.4rem;
+}
+
+h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  margin-bottom: 1rem;
+}
+
+h2 em { font-style: italic; font-weight: 400; color: var(--accent); }
+
+.lede {
+  font-size: 1.05rem;
+  color: var(--ink-mid);
+  line-height: 1.7;
+  margin-bottom: 1.5rem;
+  max-width: 680px;
+}
+
+p {
+  margin-bottom: 1rem;
+  max-width: 680px;
+}
+
+/* ── CHART CONTAINERS ── */
+.chart-panel {
+  background: var(--bg2);
+  border: 1px solid var(--rule);
+  padding: 1.5rem;
+  margin: 2rem 0;
+}
+
+.chart-title {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.7rem;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 0.3rem;
+}
+
+.chart-caption {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--ink-dim);
+  margin-top: 0.8rem;
+  line-height: 1.5;
+  max-width: 680px;
+}
+
+svg { display: block; width: 100%; }
+
+/* ── CONTROLS ── */
+.ctrl-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.cl {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.btn-grp { display: flex; gap: 0.3rem; flex-wrap: wrap; }
+
+.cbtn {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.68rem;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  padding: 0.32rem 0.8rem;
+  border: 1.5px solid var(--ink-dim);
+  background: transparent;
+  color: var(--ink-mid);
+  cursor: pointer;
+  transition: all 0.12s;
+  text-transform: uppercase;
+}
+
+.cbtn:hover { border-color: var(--ink); color: var(--ink); }
+.cbtn.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+.search-wrap { display: flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+
+#lagSearch {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.68rem;
+  padding: 0.32rem 0.65rem;
+  border: 1.5px solid var(--ink-dim);
+  background: white;
+  color: var(--ink);
+  outline: none;
+  width: 200px;
+}
+#lagSearch:focus { border-color: var(--ink); }
+#lagSearch::placeholder { color: var(--ink-dim); }
+
+/* D3 axis */
+.axis text {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  fill: var(--ink-mid);
+}
+.axis line, .axis path { stroke: var(--rule); stroke-width: 1.5; }
+.grid line { stroke: var(--rule-lt); stroke-dasharray: 3 5; opacity: 0.8; }
+.grid path { stroke: none; }
+.axis-lbl {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 11px;
+  font-weight: 500;
+  fill: var(--ink-mid);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.dot-lbl {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 10px;
+  fill: var(--ink);
+  pointer-events: none;
+}
+.quad-lbl {
+  font-family: 'Playfair Display', serif;
+  font-size: 12px;
+  font-style: italic;
+  fill: var(--ink-dim);
+  pointer-events: none;
+}
+.stream { cursor: pointer; transition: opacity 0.2s; }
+.streams-dim .stream { opacity: 0.08; }
+.streams-dim .stream.hi { opacity: 1; }
+.cr-line { fill: none; stroke: #b8860b; stroke-width: 2; stroke-linejoin: round; opacity: 0.9; pointer-events: none; }
+.cr-area { fill: #b8860b; opacity: 0.1; pointer-events: none; }
+.ann-line { stroke: var(--ink-dim); stroke-width: 1; stroke-dasharray: 2 4; }
+.ann-txt { font-family: 'Source Code Pro', monospace; font-size: 9px; fill: var(--ink-dim); }
+.dot { cursor: pointer; }
+.swarm-dot { cursor: pointer; transition: opacity 0.15s; }
+
+/* ── LEGEND ── */
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem 1.8rem;
+  flex-wrap: wrap;
+  margin-top: 0.6rem;
+}
+.leg { display: flex; align-items: center; gap: 0.4rem; cursor: pointer; }
+.leg-sw { width: 18px; height: 7px; border-radius: 1px; flex-shrink: 0; }
+.leg-dot-sm { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.leg-txt {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.65rem;
+  color: var(--ink-mid);
+}
+.leg-txt.dimmed { opacity: 0.35; }
+
+/* ── TOOLTIP ── */
+#tip {
+  position: fixed; pointer-events: none;
+  opacity: 0; transition: opacity 0.12s; z-index: 300;
+  max-width: 300px;
+}
+#tip.on { opacity: 1; }
+.tip-inner {
+  background: var(--ink); color: var(--bg);
+  padding: 1rem 1.2rem;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+.tip-name { font-size: 0.8rem; font-weight: 700; line-height: 1.35; margin-bottom: 0.5rem; }
+.tip-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.2rem 1rem; }
+.tip-lbl { font-family: 'Source Code Pro', monospace; font-size: 0.58rem; color: rgba(244,240,232,0.45); text-transform: uppercase; letter-spacing: 0.05em; }
+.tip-val { font-family: 'Source Code Pro', monospace; font-size: 0.68rem; color: rgba(244,240,232,0.9); font-weight: 500; }
+.tip-val.hi { color: #f0b060; }
+
+/* ── IMAGES ── */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.2rem;
+  margin: 2rem 0;
+}
+
+.img-card {
+  background: white;
+  border: 1px solid var(--rule);
+  overflow: hidden;
+}
+
+.img-card a {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+}
+
+.img-wrap {
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: var(--bg2);
+  position: relative;
+}
+
+.img-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.3s;
+}
+
+.img-wrap img.loading { opacity: 0; }
+.img-wrap img.loaded  { opacity: 1; }
+
+.img-meta {
+  padding: 0.65rem 0.7rem;
+  border-top: 1px solid var(--rule-lt);
+}
+
+.img-year {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.62rem;
+  font-weight: 500;
+  color: var(--accent);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.2rem;
+}
+
+.img-title {
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--ink);
+  line-height: 1.35;
+  margin-bottom: 0.2rem;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.img-provider {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.58rem;
+  color: var(--ink-dim);
+  line-height: 1.3;
+}
+
+/* ── METHODOLOGY ── */
+.method-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  cursor: pointer;
+  padding: 0.9rem 1.2rem;
+  background: var(--bg2);
+  border: 1px solid var(--rule);
+  margin-bottom: 0;
+  user-select: none;
+  transition: background 0.12s;
+}
+
+.method-toggle:hover { background: #e4dfd4; }
+
+.method-toggle-lbl {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-mid);
+}
+
+.method-arrow {
+  font-size: 0.7rem;
+  color: var(--ink-dim);
+  transition: transform 0.2s;
+  margin-left: auto;
+}
+
+.method-arrow.open { transform: rotate(90deg); }
+
+.method-body {
+  display: none;
+  background: var(--bg2);
+  border: 1px solid var(--rule);
+  border-top: none;
+  padding: 1.8rem 1.6rem;
+}
+
+.method-body.open { display: block; }
+
+.method-body h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  margin-top: 1.2rem;
+  color: var(--ink);
+}
+
+.method-body h3:first-child { margin-top: 0; }
+
+.method-body p {
+  font-size: 0.88rem;
+  color: var(--ink-mid);
+  max-width: none;
+  margin-bottom: 0.7rem;
+}
+
+.method-body code {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.78rem;
+  background: rgba(0,0,0,0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 2px;
+  color: var(--ink);
+}
+
+.method-body ol, .method-body ul {
+  margin-left: 1.4rem;
+  margin-bottom: 0.7rem;
+}
+
+.method-body li {
+  font-size: 0.88rem;
+  color: var(--ink-mid);
+  margin-bottom: 0.3rem;
+}
+
+/* ── FOOTER ── */
+footer {
+  padding: 2rem 0;
+  border-top: 2px solid var(--ink);
+  margin-top: 1rem;
+}
+
+.foot-inner {
+  max-width: var(--max-w);
+  margin: 0 auto;
+  padding: 0 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.foot-note {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.65rem;
+  color: var(--ink-dim);
+  line-height: 1.9;
+  max-width: 560px;
+}
+
+.foot-note strong { color: var(--ink-mid); font-weight: 500; }
+.foot-note a { color: var(--ink-dim); text-decoration: underline; }
+
+.foot-right {
+  font-family: 'Source Code Pro', monospace;
+  font-size: 0.65rem;
+  color: var(--ink-dim);
+  text-align: right;
+  line-height: 1.9;
+}
+
+@media (max-width: 680px) {
+  .report-title { font-size: 2.2rem; }
+  h2 { font-size: 1.5rem; }
+  .container { padding: 0 1.2rem; }
+  .masthead-inner { padding: 0 1.2rem; }
+  .foot-inner { padding: 0 1.2rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- MASTHEAD -->
+<div class="masthead">
+  <div class="masthead-inner">
+    <div class="pub-line">Digital Library of Georgia · DPLA Analysis · March 2026</div>
+    <h1 class="report-title">What <em>Georgia</em> Kept</h1>
+    <p class="report-byline">One afternoon with DPLA's bulk export and an AI that kept hitting CORS errors</p>
+    <p class="report-sub">Sara Palmer · Emory Center for Digital Scholarship (ECDS)</p>
+  </div>
+</div>
+
+<!-- SECTION 1: INTRO -->
+<section>
+  <div class="container">
+    <div class="section-label"><span class="section-num">01</span>Introduction</div>
+    <h2>1.1 million records, <em>one</em> afternoon</h2>
+    <p class="lede">The Digital Public Library of America aggregates metadata from hundreds of contributing institutions. In March 2026, the Digital Library of Georgia hub alone contained 1,149,945 records — photographs, maps, documents, sound recordings, and moving images contributed by 113 different institutions across the South and beyond.</p>
+    <p>What does a collection of that size actually look like? Not what it contains — what it <em>is</em>: its shape over time, its distribution across format types, its gaps and concentrations. These are questions that metadata can answer, but only if you look at it in aggregate rather than record by record.</p>
+    <p>This report uses the DPLA bulk export to explore three questions: How has the format composition of this collection shifted over time? How long did items wait between their creation and their digitization — and does that lag vary by institution type? And what do a handful of individual items look like when pulled back out of the aggregate?</p>
+    <p>All data comes from the DPLA March 2026 bulk export for the Georgia hub, processed locally with Python and visualized with D3.js. See the methodology note at the bottom for details on tools and process, including where an AI assistant helped and where it ran into walls.</p>
+  </div>
+</section>
+
+<!-- SECTION 2: FORMAT STREAMGRAPH -->
+<section>
+  <div class="container">
+    <div class="section-label"><span class="section-num">02</span>The shape of a collection</div>
+    <h2>What <em>format</em> is history?</h2>
+    <p class="lede">Of the 157,402 dated items in the collection, the vast majority are images — photographs, maps, illustrations. But the mix shifts dramatically across time, and the shifts carry meaning.</p>
+    <p>The 1864 spike in text records reflects the Civil War: newspapers, orders, correspondence, and official documents, concentrated in a single year. The dominance of images from 1930 through 1960 corresponds to the FSA photography programs and the era of institutional photography. Sound and moving image arrive late — essentially from scratch in the late 1950s — tracing the moment when the Peabody Awards collection enters the archive.</p>
+    <p>The gold overlay tracks items tagged with civil rights or African American subject headings. Its arc — building slowly through Reconstruction, peaking sharply in 1965 and again around 1970–72 — reflects both history and the retrospective work of archivists deciding what to describe and how.</p>
+
+    <div class="chart-panel">
+      <div class="chart-title">Format composition over time, 1860–2000</div>
+      <div class="ctrl-row">
+        <span class="cl">Layout</span>
+        <div class="btn-grp">
+          <button class="cbtn active" id="fmtSil">Silhouette</button>
+          <button class="cbtn" id="fmtProp">Proportional</button>
+          <button class="cbtn" id="fmtAbs">Absolute</button>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:0.5rem;">
+          <span class="cl">Civil rights overlay</span>
+          <button class="cbtn active" id="crToggle">On</button>
+        </div>
+      </div>
+      <svg id="fmtChart"></svg>
+      <div class="legend-row" id="fmtLegend"></div>
+      <p class="chart-caption">Each stream represents one format type. Width encodes relative item count per year. A 3-year rolling average has been applied to smooth cataloguing noise. The gold line shows items with "civil rights" or "african american" subject headings, independently scaled.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 3: LAG SCATTERPLOT -->
+<section>
+  <div class="container">
+    <div class="section-label"><span class="section-num">03</span>The waiting room</div>
+    <h2>How long did <em>things wait</em>?</h2>
+    <p class="lede">Every item in DPLA has two dates embedded in its metadata: when it was created, and when it was ingested into the digital library. The gap between those dates — the digitization lag — is a rough proxy for institutional priority.</p>
+    <p>The Georgia Archives has a median lag of 107 years. Emory University's General Libraries: 137 years. The State Library of Pennsylvania, whose materials ended up in a Georgia aggregation for reasons worth investigating: 167 years. At the other end, Clark Atlanta University has a median lag of just 21 years, and the Museum of Contemporary Art of Georgia just 19.</p>
+    <p>These numbers don't mean some institutions were negligent and others were not. Digitization requires funding, staff, equipment, and rights clearances. An institution holding 19th-century manuscript collections faces different constraints than one documenting contemporary art. But the pattern of which institutions sit in which quadrant of this chart is not random.</p>
+
+    <div class="chart-panel">
+      <div class="chart-title">Digitization lag by institution · 113 providers</div>
+      <div class="ctrl-row">
+        <span class="cl">Color by</span>
+        <div class="btn-grp">
+          <button class="cbtn active" id="lagColorLag">Lag</button>
+          <button class="cbtn" id="lagColorType">Institution type</button>
+        </div>
+        <span class="cl">Labels</span>
+        <div class="btn-grp">
+          <button class="cbtn active" id="lagLblNone">None</button>
+          <button class="cbtn" id="lagLblTop">Top 15</button>
+          <button class="cbtn" id="lagLblAll">All</button>
+        </div>
+        <div class="search-wrap">
+          <span class="cl">Find</span>
+          <input type="text" id="lagSearch" placeholder="institution name…">
+        </div>
+      </div>
+      <svg id="lagChart"></svg>
+      <div class="legend-row" id="lagLegend"></div>
+      <p class="chart-caption">Each circle is one contributing institution (≥50 dated records). X axis: median creation year of items contributed. Y axis: median years from item creation to DPLA ingest. Size encodes number of items. Hover for details. Switch to "institution type" coloring to see how institution character relates to collection age and lag.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 4: SWARM BY TYPE -->
+<section>
+  <div class="container">
+    <div class="section-label"><span class="section-num">04</span>Who waited longest</div>
+    <h2>Lag by <em>institution type</em></h2>
+    <p class="lede">Breaking the lag distribution down by institution type makes a quieter pattern visible. HBCU and Black cultural institutions tend to cluster in the middle range — not the extremes. But they are also working with older material than their median lag might suggest.</p>
+    <p>The institutions with the longest lags are concentrated in a specific category: rare book libraries and theological seminaries holding antebellum manuscript collections. This is a resource and mission story, not a negligence story. But it raises a question that the data can't answer: whose 19th-century materials got prioritized for early digitization funding, and whose waited?</p>
+    <p>Click a type label below to isolate that group. Click again to clear.</p>
+
+    <div class="chart-panel">
+      <div class="chart-title">Median digitization lag by institution type</div>
+      <svg id="swarmChart"></svg>
+      <div class="legend-row" id="swarmLegend" style="margin-top:0.6rem;"></div>
+      <p class="chart-caption">Each dot is one institution. Horizontal position shows median digitization lag. Rows group institutions by type. Click a row label or legend item to isolate. Hover for details.</p>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION 5: IMAGES -->
+<section>
+  <div class="container">
+    <div class="section-label"><span class="section-num">05</span>From the archive</div>
+    <h2>Behind the <em>numbers</em></h2>
+    <p class="lede">Metadata is a representation of objects, not the objects themselves. Here are eight items drawn from the collection — one per decade, 1860s through 1970s — each a reminder that what the charts describe is a set of things people made, used, and left behind.</p>
+    <p>These thumbnails are served directly from the Digital Library of Georgia. Click any image to view the full record in the contributing institution's repository.</p>
+
+    <div class="image-grid" id="imageGrid"></div>
+
+    <p style="font-size:0.8rem; font-style:italic; color:var(--ink-dim); margin-top:0.5rem;">Images are reproduced from DPLA metadata records. Rights status varies by item — check the original record for rights information before reuse.</p>
+  </div>
+</section>
+
+<!-- SECTION 6: METHODOLOGY -->
+<section style="border-bottom:none; padding-bottom:1rem;">
+  <div class="container">
+    <div class="section-label"><span class="section-num">06</span>How this was made</div>
+
+    <div class="method-toggle" id="methodToggle">
+      <span class="method-toggle-lbl">Methodology & process notes</span>
+      <span class="method-arrow" id="methodArrow">▶</span>
+    </div>
+    <div class="method-body" id="methodBody">
+
+      <h3>The data source</h3>
+      <p>All data comes from the DPLA bulk export for the Digital Library of Georgia hub, downloaded from the public S3 bucket <code>s3://dpla-provider-export/2026/03/georgia/</code> using the AWS CLI. The export contains 1,149,945 records as gzipped JSONL files (~186MB compressed). No API key is required for bulk download access.</p>
+
+      <h3>Processing</h3>
+      <p>Records were processed locally with Python, reading each gzipped part file line by line. Key fields extracted:</p>
+      <ul>
+        <li><code>sourceResource.date[0].begin</code> — creation year (truncated to 4 digits)</li>
+        <li><code>sourceResource.type</code> — format classification</li>
+        <li><code>sourceResource.subject[].name</code> — subject headings</li>
+        <li><code>dataProvider.name</code> — contributing institution</li>
+        <li><code>ingestDate</code> — DPLA ingest date (used to compute digitization lag)</li>
+        <li><code>object</code> — thumbnail URL for image display</li>
+      </ul>
+      <p>Records with absent or unparseable dates were excluded. Items with computed lags over 200 years were excluded as likely metadata errors. A 3-year or 5-year rolling average was applied to annual counts to smooth noise from uneven cataloguing practices.</p>
+
+      <h3>Role of Claude (Anthropic)</h3>
+      <p>Claude assisted throughout this project in several ways — and ran into walls in several others, which turned out to be instructive.</p>
+      <p><strong>What worked well:</strong> Claude helped draft and iterate the Python extraction scripts, suggested which fields to pull and how to handle edge cases in date parsing, proposed the lag analysis as a more interesting angle than simple subject frequency trends, helped design the visual encoding (scatter vs. beeswarm, what to put on each axis), wrote the D3.js visualization code, and helped compose the framing text for each section.</p>
+      <p><strong>Where it hit walls:</strong> The original goal was to query the DPLA API live from the browser. This failed repeatedly due to CORS restrictions — the DPLA API does not return <code>Access-Control-Allow-Origin</code> headers, so browsers block direct client-side calls regardless of origin. A second attempt to route queries through the Anthropic API from the browser also failed for the same reason (the Anthropic API similarly blocks direct browser calls, as it is designed for server-side use). The bulk download was the right solution all along, and the CORS failures ultimately produced a richer dataset.</p>
+      <p><strong>What this workflow is and isn't:</strong> Claude cannot run code, access the internet, or query APIs directly. It acts as a collaborator on code, structure, and analysis — the data processing, the curl of the S3 bucket, and the verification of results all happened on a local machine. The interpretive claims in this report emerged from a collaborative process — the author shaped the questions and Claude proposed framings, which the author accepted, modified, or rejected. Neither attribution feels complete.</p>
+
+      <h3>Visualization</h3>
+      <p>All charts are built with <a href="https://d3js.org" target="_blank">D3.js v7</a> and rendered as inline SVG in a standalone HTML file. No external data files are required — all processed data is embedded directly in the HTML. The report is designed to be shared as a single file.</p>
+
+      <h3>Reproducibility</h3>
+      <p>The DPLA bulk export is updated monthly. Running the extraction scripts against a later export will produce slightly different numbers as collections grow. The S3 path structure follows the pattern <code>s3://dpla-provider-export/YYYY/MM/georgia/.jsonl/</code>.</p>
+
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="foot-inner">
+    <div class="foot-note">
+      <strong>Data:</strong> Digital Public Library of America bulk export, March 2026 — <a href="https://dp.la" target="_blank">dp.la</a> · hub: Digital Library of Georgia.<br>
+      <strong>Code:</strong> D3.js v7 · Python 3 · AWS CLI · Claude (Anthropic)<br>
+      All charts embedded in a single standalone HTML file. No server required.
+    </div>
+    <div class="foot-right">
+      Sara Palmer · ECDS<br>
+      Emory University<br>
+      March 2026
+    </div>
+  </div>
+</footer>
+
+<div id="tip"><div class="tip-inner">
+  <div class="tip-name" id="tipName"></div>
+  <div class="tip-grid" id="tipGrid"></div>
+</div></div>
+
+<script>
+// ── DATA ─────────────────────────────────────────────────────────────────────
+
+// Format counts 1860-2000
+const FMT_RAW = {"1860":{"image":236,"text":363,"sound":0,"moving_image":0,"civil_rights":5},"1861":{"image":171,"text":460,"sound":0,"moving_image":0,"civil_rights":4},"1862":{"image":95,"text":393,"sound":0,"moving_image":0,"civil_rights":7},"1863":{"image":93,"text":420,"sound":0,"moving_image":1,"civil_rights":7},"1864":{"image":481,"text":1640,"sound":0,"moving_image":0,"civil_rights":26},"1865":{"image":81,"text":388,"sound":0,"moving_image":0,"civil_rights":16},"1866":{"image":90,"text":177,"sound":0,"moving_image":0,"civil_rights":22},"1867":{"image":71,"text":117,"sound":0,"moving_image":0,"civil_rights":21},"1868":{"image":49,"text":136,"sound":0,"moving_image":0,"civil_rights":29},"1869":{"image":103,"text":127,"sound":0,"moving_image":0,"civil_rights":11},"1870":{"image":184,"text":118,"sound":0,"moving_image":0,"civil_rights":12},"1871":{"image":72,"text":82,"sound":0,"moving_image":0,"civil_rights":8},"1872":{"image":37,"text":118,"sound":0,"moving_image":0,"civil_rights":18},"1873":{"image":66,"text":80,"sound":0,"moving_image":0,"civil_rights":13},"1874":{"image":57,"text":84,"sound":0,"moving_image":0,"civil_rights":7},"1875":{"image":147,"text":78,"sound":0,"moving_image":0,"civil_rights":11},"1876":{"image":124,"text":101,"sound":0,"moving_image":0,"civil_rights":10},"1877":{"image":140,"text":100,"sound":0,"moving_image":0,"civil_rights":9},"1878":{"image":57,"text":97,"sound":0,"moving_image":0,"civil_rights":6},"1879":{"image":79,"text":82,"sound":0,"moving_image":0,"civil_rights":5},"1880":{"image":258,"text":92,"sound":0,"moving_image":0,"civil_rights":29},"1881":{"image":58,"text":108,"sound":0,"moving_image":0,"civil_rights":15},"1882":{"image":71,"text":123,"sound":0,"moving_image":0,"civil_rights":19},"1883":{"image":94,"text":154,"sound":0,"moving_image":0,"civil_rights":61},"1884":{"image":109,"text":130,"sound":0,"moving_image":0,"civil_rights":45},"1885":{"image":123,"text":140,"sound":0,"moving_image":0,"civil_rights":41},"1886":{"image":107,"text":132,"sound":0,"moving_image":0,"civil_rights":29},"1887":{"image":109,"text":149,"sound":0,"moving_image":0,"civil_rights":19},"1888":{"image":128,"text":163,"sound":0,"moving_image":0,"civil_rights":33},"1889":{"image":85,"text":118,"sound":0,"moving_image":0,"civil_rights":21},"1890":{"image":791,"text":148,"sound":0,"moving_image":0,"civil_rights":185},"1891":{"image":136,"text":136,"sound":0,"moving_image":0,"civil_rights":50},"1892":{"image":149,"text":140,"sound":0,"moving_image":0,"civil_rights":34},"1893":{"image":150,"text":144,"sound":0,"moving_image":0,"civil_rights":29},"1894":{"image":136,"text":138,"sound":0,"moving_image":0,"civil_rights":35},"1895":{"image":621,"text":168,"sound":0,"moving_image":0,"civil_rights":80},"1896":{"image":151,"text":134,"sound":0,"moving_image":0,"civil_rights":40},"1897":{"image":174,"text":131,"sound":0,"moving_image":0,"civil_rights":24},"1898":{"image":406,"text":141,"sound":0,"moving_image":0,"civil_rights":50},"1899":{"image":648,"text":160,"sound":0,"moving_image":0,"civil_rights":445},"1900":{"image":1889,"text":192,"sound":0,"moving_image":0,"civil_rights":260},"1901":{"image":182,"text":1900,"sound":0,"moving_image":0,"civil_rights":53},"1902":{"image":215,"text":165,"sound":0,"moving_image":0,"civil_rights":45},"1903":{"image":249,"text":225,"sound":0,"moving_image":0,"civil_rights":66},"1904":{"image":209,"text":144,"sound":0,"moving_image":0,"civil_rights":44},"1905":{"image":587,"text":142,"sound":0,"moving_image":0,"civil_rights":73},"1906":{"image":671,"text":165,"sound":0,"moving_image":0,"civil_rights":42},"1907":{"image":512,"text":154,"sound":0,"moving_image":0,"civil_rights":62},"1908":{"image":478,"text":209,"sound":0,"moving_image":0,"civil_rights":98},"1909":{"image":395,"text":148,"sound":0,"moving_image":0,"civil_rights":36},"1910":{"image":1332,"text":173,"sound":0,"moving_image":0,"civil_rights":136},"1911":{"image":322,"text":151,"sound":0,"moving_image":0,"civil_rights":38},"1912":{"image":458,"text":135,"sound":0,"moving_image":0,"civil_rights":63},"1913":{"image":299,"text":156,"sound":0,"moving_image":0,"civil_rights":59},"1914":{"image":531,"text":178,"sound":0,"moving_image":0,"civil_rights":70},"1915":{"image":715,"text":226,"sound":0,"moving_image":1,"civil_rights":100},"1916":{"image":288,"text":206,"sound":0,"moving_image":0,"civil_rights":60},"1917":{"image":294,"text":193,"sound":0,"moving_image":1,"civil_rights":62},"1918":{"image":641,"text":196,"sound":0,"moving_image":0,"civil_rights":77},"1919":{"image":557,"text":210,"sound":0,"moving_image":1,"civil_rights":71},"1920":{"image":1089,"text":206,"sound":0,"moving_image":0,"civil_rights":140},"1921":{"image":245,"text":157,"sound":1,"moving_image":1,"civil_rights":73},"1922":{"image":233,"text":213,"sound":0,"moving_image":0,"civil_rights":77},"1923":{"image":316,"text":160,"sound":0,"moving_image":0,"civil_rights":51},"1924":{"image":328,"text":141,"sound":0,"moving_image":0,"civil_rights":44},"1925":{"image":631,"text":186,"sound":0,"moving_image":0,"civil_rights":94},"1926":{"image":329,"text":154,"sound":0,"moving_image":0,"civil_rights":56},"1927":{"image":545,"text":162,"sound":0,"moving_image":0,"civil_rights":70},"1928":{"image":400,"text":169,"sound":0,"moving_image":2,"civil_rights":68},"1929":{"image":399,"text":157,"sound":0,"moving_image":0,"civil_rights":64},"1930":{"image":1130,"text":269,"sound":0,"moving_image":0,"civil_rights":203},"1931":{"image":322,"text":177,"sound":0,"moving_image":0,"civil_rights":101},"1932":{"image":304,"text":127,"sound":0,"moving_image":0,"civil_rights":55},"1933":{"image":340,"text":141,"sound":0,"moving_image":2,"civil_rights":71},"1934":{"image":466,"text":122,"sound":0,"moving_image":0,"civil_rights":52},"1935":{"image":1161,"text":155,"sound":0,"moving_image":1,"civil_rights":152},"1936":{"image":1067,"text":130,"sound":0,"moving_image":1,"civil_rights":99},"1937":{"image":1148,"text":190,"sound":0,"moving_image":3,"civil_rights":66},"1938":{"image":1160,"text":172,"sound":0,"moving_image":3,"civil_rights":75},"1939":{"image":1820,"text":187,"sound":0,"moving_image":7,"civil_rights":114},"1940":{"image":3023,"text":159,"sound":0,"moving_image":6,"civil_rights":541},"1941":{"image":1210,"text":169,"sound":14,"moving_image":1,"civil_rights":118},"1942":{"image":884,"text":161,"sound":0,"moving_image":5,"civil_rights":66},"1943":{"image":1112,"text":200,"sound":6,"moving_image":0,"civil_rights":104},"1944":{"image":844,"text":188,"sound":0,"moving_image":1,"civil_rights":83},"1945":{"image":1141,"text":202,"sound":0,"moving_image":0,"civil_rights":159},"1946":{"image":1061,"text":187,"sound":0,"moving_image":2,"civil_rights":94},"1947":{"image":953,"text":202,"sound":1,"moving_image":1,"civil_rights":103},"1948":{"image":960,"text":203,"sound":3,"moving_image":6,"civil_rights":136},"1949":{"image":1058,"text":166,"sound":2,"moving_image":3,"civil_rights":207},"1950":{"image":3036,"text":362,"sound":0,"moving_image":3,"civil_rights":459},"1951":{"image":1142,"text":377,"sound":2,"moving_image":4,"civil_rights":178},"1952":{"image":1130,"text":245,"sound":1,"moving_image":7,"civil_rights":188},"1953":{"image":1859,"text":323,"sound":1,"moving_image":5,"civil_rights":250},"1954":{"image":1099,"text":280,"sound":4,"moving_image":12,"civil_rights":118},"1955":{"image":2006,"text":347,"sound":0,"moving_image":8,"civil_rights":430},"1956":{"image":1140,"text":365,"sound":2,"moving_image":17,"civil_rights":210},"1957":{"image":948,"text":510,"sound":6,"moving_image":68,"civil_rights":290},"1958":{"image":983,"text":368,"sound":1,"moving_image":147,"civil_rights":304},"1959":{"image":965,"text":394,"sound":3,"moving_image":97,"civil_rights":306},"1960":{"image":2452,"text":490,"sound":12,"moving_image":173,"civil_rights":433},"1961":{"image":712,"text":639,"sound":8,"moving_image":113,"civil_rights":317},"1962":{"image":1253,"text":543,"sound":17,"moving_image":146,"civil_rights":421},"1963":{"image":1308,"text":570,"sound":20,"moving_image":309,"civil_rights":632},"1964":{"image":1325,"text":496,"sound":16,"moving_image":145,"civil_rights":384},"1965":{"image":1760,"text":851,"sound":249,"moving_image":14,"civil_rights":1058},"1966":{"image":1472,"text":684,"sound":41,"moving_image":3,"civil_rights":471},"1967":{"image":1552,"text":451,"sound":130,"moving_image":25,"civil_rights":429},"1968":{"image":1618,"text":462,"sound":106,"moving_image":37,"civil_rights":547},"1969":{"image":1801,"text":488,"sound":112,"moving_image":11,"civil_rights":480},"1970":{"image":2208,"text":523,"sound":99,"moving_image":39,"civil_rights":650},"1971":{"image":1077,"text":478,"sound":43,"moving_image":10,"civil_rights":355},"1972":{"image":1479,"text":496,"sound":25,"moving_image":16,"civil_rights":700},"1973":{"image":1206,"text":543,"sound":87,"moving_image":6,"civil_rights":515},"1974":{"image":1406,"text":489,"sound":87,"moving_image":20,"civil_rights":591},"1975":{"image":1497,"text":597,"sound":75,"moving_image":5,"civil_rights":621},"1976":{"image":1224,"text":604,"sound":32,"moving_image":15,"civil_rights":318},"1977":{"image":1643,"text":729,"sound":12,"moving_image":11,"civil_rights":553},"1978":{"image":960,"text":499,"sound":15,"moving_image":13,"civil_rights":487},"1979":{"image":798,"text":492,"sound":26,"moving_image":27,"civil_rights":547},"1980":{"image":1484,"text":937,"sound":9,"moving_image":25,"civil_rights":441},"1981":{"image":749,"text":986,"sound":19,"moving_image":8,"civil_rights":420},"1982":{"image":813,"text":511,"sound":10,"moving_image":10,"civil_rights":328},"1983":{"image":617,"text":460,"sound":7,"moving_image":2,"civil_rights":203},"1984":{"image":435,"text":448,"sound":15,"moving_image":14,"civil_rights":267},"1985":{"image":552,"text":488,"sound":75,"moving_image":16,"civil_rights":321},"1986":{"image":446,"text":370,"sound":11,"moving_image":16,"civil_rights":199},"1987":{"image":505,"text":324,"sound":15,"moving_image":15,"civil_rights":169},"1988":{"image":733,"text":336,"sound":16,"moving_image":63,"civil_rights":214},"1989":{"image":624,"text":328,"sound":16,"moving_image":52,"civil_rights":189},"1990":{"image":966,"text":533,"sound":74,"moving_image":47,"civil_rights":241},"1991":{"image":274,"text":243,"sound":5,"moving_image":17,"civil_rights":124},"1992":{"image":359,"text":292,"sound":4,"moving_image":14,"civil_rights":175},"1993":{"image":316,"text":262,"sound":8,"moving_image":27,"civil_rights":126},"1994":{"image":184,"text":532,"sound":14,"moving_image":14,"civil_rights":109},"1995":{"image":564,"text":576,"sound":7,"moving_image":18,"civil_rights":161},"1996":{"image":474,"text":400,"sound":2,"moving_image":22,"civil_rights":120},"1997":{"image":235,"text":380,"sound":4,"moving_image":25,"civil_rights":145},"1998":{"image":237,"text":400,"sound":5,"moving_image":10,"civil_rights":100},"1999":{"image":207,"text":630,"sound":1,"moving_image":21,"civil_rights":140},"2000":{"image":380,"text":377,"sound":3,"moving_image":176,"civil_rights":178}};
+
+// Lag data
+const LAG_DATA = [{"provider":"Georgia State University. Special Collections","n":20152,"median_gap":57,"avg_gap":63.2,"median_created":1969,"p25_created":1945,"p75_created":1980,"min_created":1831,"max_created":2020},{"provider":"University of Georgia. Map and Government Information Library","n":18419,"median_gap":26,"avg_gap":38.1,"median_created":2000,"p25_created":1973,"p75_created":2009,"min_created":1829,"max_created":2024},{"provider":"Atlanta History Center","n":16392,"median_gap":61,"avg_gap":70.4,"median_created":1965,"p25_created":1941,"p75_created":1974,"min_created":1828,"max_created":2023},{"provider":"Troup County Archives","n":14000,"median_gap":68,"avg_gap":73.0,"median_created":1958,"p25_created":1940,"p75_created":1970,"min_created":1830,"max_created":2022},{"provider":"Georgia Archives","n":13923,"median_gap":109,"avg_gap":107.0,"median_created":1917,"p25_created":1900,"p75_created":1940,"min_created":1826,"max_created":2011},{"provider":"Hargrett Library","n":10999,"median_gap":83,"avg_gap":97.8,"median_created":1943,"p25_created":1901,"p75_created":1956,"min_created":1826,"max_created":2019},{"provider":"Stuart A. Rose Manuscript, Archives, and Rare Book Library","n":10986,"median_gap":80,"avg_gap":95.6,"median_created":1946,"p25_created":1887,"p75_created":1965,"min_created":1826,"max_created":2022},{"provider":"Atlanta University Center Robert W. Woodruff Library","n":8265,"median_gap":57,"avg_gap":60.6,"median_created":1969,"p25_created":1953,"p75_created":1985,"min_created":1862,"max_created":2024},{"provider":"Hargrett Library (University of Georgia)","n":2486,"median_gap":99,"avg_gap":113.6,"median_created":1927,"p25_created":1880,"p75_created":1948,"min_created":1826,"max_created":1960},{"provider":"Library of Congress","n":2266,"median_gap":108,"avg_gap":109.0,"median_created":1918,"p25_created":1898,"p75_created":1939,"min_created":1826,"max_created":2015},{"provider":"New Georgia Encyclopedia (Project)","n":2206,"median_gap":61,"avg_gap":69.8,"median_created":1966,"p25_created":1920,"p75_created":1999,"min_created":1828,"max_created":2024},{"provider":"Valdosta State University. Odum Library. Archives and Special Collections","n":1999,"median_gap":49,"avg_gap":67.8,"median_created":1977,"p25_created":1939,"p75_created":1981,"min_created":1828,"max_created":2023},{"provider":"Michael Schwartz Library","n":1992,"median_gap":54,"avg_gap":55.7,"median_created":1972,"p25_created":1967,"p75_created":1977,"min_created":1912,"max_created":1990},{"provider":"Richard B. Russell Library for Political Research and Studies","n":1732,"median_gap":59,"avg_gap":59.4,"median_created":1967,"p25_created":1960,"p75_created":1973,"min_created":1910,"max_created":2016},{"provider":"Mississippi State University. Libraries","n":1615,"median_gap":76,"avg_gap":82.7,"median_created":1950,"p25_created":1928,"p75_created":1959,"min_created":1833,"max_created":2009},{"provider":"Oxford College Library (Oxford, Ga.)","n":1343,"median_gap":127,"avg_gap":122.9,"median_created":1899,"p25_created":1888,"p75_created":1906,"min_created":1860,"max_created":2011},{"provider":"Walter J. Brown Media Archives and Peabody Awards Collection","n":1307,"median_gap":64,"avg_gap":64.2,"median_created":1962,"p25_created":1959,"p75_created":1963,"min_created":1915,"max_created":1999},{"provider":"HathiTrust","n":969,"median_gap":103,"avg_gap":95.8,"median_created":1923,"p25_created":1897,"p75_created":1968,"min_created":1827,"max_created":2007},{"provider":"National Agricultural Library (U.S.)","n":894,"median_gap":102,"avg_gap":103.7,"median_created":1924,"p25_created":1910,"p75_created":1936,"min_created":1850,"max_created":1969},{"provider":"Columbia Theological Seminary","n":860,"median_gap":108,"avg_gap":106.9,"median_created":1918,"p25_created":1862,"p75_created":1972,"min_created":1826,"max_created":2024},{"provider":"Willet Memorial Library (Wesleyan College)","n":836,"median_gap":77,"avg_gap":77.6,"median_created":1949,"p25_created":1930,"p75_created":1971,"min_created":1839,"max_created":2016},{"provider":"Spelman College","n":834,"median_gap":63,"avg_gap":61.5,"median_created":1963,"p25_created":1944,"p75_created":1991,"min_created":1881,"max_created":2021},{"provider":"Washington Memorial Library, Middle Georgia Regional Library","n":826,"median_gap":96,"avg_gap":90.2,"median_created":1930,"p25_created":1907,"p75_created":1967,"min_created":1860,"max_created":2010},{"provider":"Atlanta (Ga.). Department of Watershed Management","n":758,"median_gap":88,"avg_gap":88.5,"median_created":1938,"p25_created":1937,"p75_created":1938,"min_created":1936,"max_created":1940},{"provider":"Northeast Georgia Regional Library System","n":749,"median_gap":76,"avg_gap":74.9,"median_created":1950,"p25_created":1950,"p75_created":1953,"min_created":1950,"max_created":1960},{"provider":"Historically Black Colleges and Universities (HBCU) Library Alliance","n":722,"median_gap":76,"avg_gap":78.8,"median_created":1950,"p25_created":1926,"p75_created":1970,"min_created":1840,"max_created":2019},{"provider":"Duke University. Library","n":720,"median_gap":162,"avg_gap":136.2,"median_created":1864,"p25_created":1863,"p75_created":1957,"min_created":1853,"max_created":2000},{"provider":"University of Maryland, College Park. Libraries","n":711,"median_gap":82,"avg_gap":111.5,"median_created":1944,"p25_created":1860,"p75_created":1972,"min_created":1852,"max_created":1999},{"provider":"University of Georgia. Libraries","n":709,"median_gap":114,"avg_gap":97.2,"median_created":1912,"p25_created":1895,"p75_created":1982,"min_created":1831,"max_created":2022},{"provider":"City of Savannah Municipal Archives","n":634,"median_gap":63,"avg_gap":64.0,"median_created":1963,"p25_created":1920,"p75_created":2005,"min_created":1854,"max_created":2009},{"provider":"Mercer University. Libraries","n":631,"median_gap":115,"avg_gap":111.6,"median_created":1911,"p25_created":1901,"p75_created":1927,"min_created":1826,"max_created":2017},{"provider":"Auburn Avenue Research Library on African-American Culture and History","n":630,"median_gap":39,"avg_gap":58.4,"median_created":1987,"p25_created":1940,"p75_created":1990,"min_created":1851,"max_created":2019},{"provider":"University of Arkansas, Fayetteville. Libraries","n":604,"median_gap":69,"avg_gap":71.7,"median_created":1957,"p25_created":1950,"p75_created":1960,"min_created":1835,"max_created":2007},{"provider":"Kennesaw State University. Department of Archives, Rare Books and Records Management","n":570,"median_gap":50,"avg_gap":53.0,"median_created":1976,"p25_created":1956,"p75_created":1999,"min_created":1839,"max_created":2019},{"provider":"Birmingham Public Library (Ala.)","n":517,"median_gap":64,"avg_gap":64.4,"median_created":1962,"p25_created":1960,"p75_created":1963,"min_created":1930,"max_created":1995},{"provider":"Berry College. Library","n":495,"median_gap":30,"avg_gap":50.2,"median_created":1996,"p25_created":1942,"p75_created":2000,"min_created":1902,"max_created":2015},{"provider":"Alabama. Department of Archives and History","n":470,"median_gap":61,"avg_gap":62.9,"median_created":1965,"p25_created":1963,"p75_created":1966,"min_created":1866,"max_created":2005},{"provider":"Philip Weltner Library. Archives","n":464,"median_gap":62,"avg_gap":63.8,"median_created":1964,"p25_created":1935,"p75_created":1988,"min_created":1914,"max_created":2010},{"provider":"Columbus State University. Archives","n":461,"median_gap":51,"avg_gap":50.2,"median_created":1975,"p25_created":1972,"p75_created":1989,"min_created":1837,"max_created":2007},{"provider":"Augusta University, Robert B. Greenblatt, M.D. Library","n":445,"median_gap":43,"avg_gap":59.2,"median_created":1983,"p25_created":1981,"p75_created":1986,"min_created":1829,"max_created":2011},{"provider":"University of West Georgia. Special Collections","n":445,"median_gap":70,"avg_gap":75.4,"median_created":1956,"p25_created":1918,"p75_created":1973,"min_created":1860,"max_created":2006},{"provider":"Pine Mountain Regional Library","n":442,"median_gap":73,"avg_gap":73.0,"median_created":1953,"p25_created":1953,"p75_created":1953,"min_created":1950,"max_created":1957},{"provider":"Hall County Library System (Ga.)","n":387,"median_gap":77,"avg_gap":89.0,"median_created":1949,"p25_created":1914,"p75_created":1954,"min_created":1838,"max_created":1982},{"provider":"Pitts Theology Library","n":369,"median_gap":134,"avg_gap":135.6,"median_created":1892,"p25_created":1870,"p75_created":1909,"min_created":1827,"max_created":1968},{"provider":"Athens-Clarke County Library","n":358,"median_gap":85,"avg_gap":87.1,"median_created":1941,"p25_created":1923,"p75_created":1945,"min_created":1889,"max_created":2012},{"provider":"Emory University. General Libraries","n":346,"median_gap":137,"avg_gap":138.0,"median_created":1890,"p25_created":1864,"p75_created":1905,"min_created":1826,"max_created":1964},{"provider":"Fulton County Schools Archive","n":339,"median_gap":60,"avg_gap":66.7,"median_created":1966,"p25_created":1943,"p75_created":1974,"min_created":1871,"max_created":2024},{"provider":"John Hope and Aurelia E. Franklin Library (Fisk University)","n":321,"median_gap":64,"avg_gap":66.7,"median_created":1962,"p25_created":1948,"p75_created":1982,"min_created":1868,"max_created":2006},{"provider":"Lane Library (Georgia Southern University, Armstrong Campus)","n":318,"median_gap":86,"avg_gap":79.9,"median_created":1940,"p25_created":1940,"p75_created":1940,"min_created":1937,"max_created":1997},{"provider":"LaGrange College (LaGrange, Ga.)","n":308,"median_gap":61,"avg_gap":66.5,"median_created":1966,"p25_created":1931,"p75_created":1996,"min_created":1848,"max_created":2012},{"provider":"University of Louisville. Libraries. Archives and Special Collections","n":306,"median_gap":126,"avg_gap":126.3,"median_created":1900,"p25_created":1900,"p75_created":1900,"min_created":1870,"max_created":1903},{"provider":"McCain Library","n":294,"median_gap":75,"avg_gap":74.8,"median_created":1951,"p25_created":1926,"p75_created":1978,"min_created":1890,"max_created":2010},{"provider":"Virginia State University. Library. Archives and Special Collections","n":278,"median_gap":106,"avg_gap":112.4,"median_created":1920,"p25_created":1899,"p75_created":1929,"min_created":1834,"max_created":1946},{"provider":"Brantley County Library","n":278,"median_gap":49,"avg_gap":57.5,"median_created":1977,"p25_created":1953,"p75_created":1977,"min_created":1953,"max_created":1983},{"provider":"Society of Mary (Marists) U.S. Province Archives","n":267,"median_gap":66,"avg_gap":64.5,"median_created":1960,"p25_created":1960,"p75_created":1966,"min_created":1938,"max_created":1982},{"provider":"Screven-Jenkins Regional Library System","n":247,"median_gap":75,"avg_gap":76.6,"median_created":1951,"p25_created":1947,"p75_created":1951,"min_created":1945,"max_created":1951},{"provider":"Mississippi. Department of Archives and History","n":244,"median_gap":61,"avg_gap":59.6,"median_created":1965,"p25_created":1964,"p75_created":1966,"min_created":1934,"max_created":1997},{"provider":"Stanford University. Libraries. Department of Special Collections","n":232,"median_gap":61,"avg_gap":61.0,"median_created":1965,"p25_created":1965,"p75_created":1965,"min_created":1965,"max_created":1965},{"provider":"South Caroliniana Library","n":232,"median_gap":66,"avg_gap":64.7,"median_created":1960,"p25_created":1955,"p75_created":1969,"min_created":1892,"max_created":1999},{"provider":"Butler Center for Arkansas Studies","n":224,"median_gap":35,"avg_gap":46.0,"median_created":1991,"p25_created":1960,"p75_created":1995,"min_created":1867,"max_created":2010},{"provider":"Augusta University, Reese Library","n":223,"median_gap":65,"avg_gap":67.9,"median_created":1961,"p25_created":1936,"p75_created":1980,"min_created":1888,"max_created":2010},{"provider":"Asa H. Gordon Library (Savannah, Ga.)","n":221,"median_gap":53,"avg_gap":52.1,"median_created":1973,"p25_created":1961,"p75_created":1988,"min_created":1896,"max_created":2016},{"provider":"University of North Texas. Libraries","n":208,"median_gap":62,"avg_gap":63.1,"median_created":1964,"p25_created":1953,"p75_created":1972,"min_created":1943,"max_created":1980},{"provider":"University of the District of Columbia","n":207,"median_gap":52,"avg_gap":55.1,"median_created":1974,"p25_created":1962,"p75_created":1979,"min_created":1885,"max_created":2009},{"provider":"Georgia Historical Society","n":189,"median_gap":70,"avg_gap":99.6,"median_created":1956,"p25_created":1869,"p75_created":1967,"min_created":1830,"max_created":1989},{"provider":"William Stanley Hoole Special Collections Library","n":186,"median_gap":139,"avg_gap":124.8,"median_created":1888,"p25_created":1866,"p75_created":1943,"min_created":1850,"max_created":2017},{"provider":"American Folklife Center","n":171,"median_gap":49,"avg_gap":39.9,"median_created":1977,"p25_created":1977,"p75_created":2013,"min_created":1941,"max_created":2016},{"provider":"Digital Library of Georgia","n":168,"median_gap":76,"avg_gap":83.4,"median_created":1951,"p25_created":1908,"p75_created":1977,"min_created":1836,"max_created":2010},{"provider":"Chicago History Museum","n":167,"median_gap":61,"avg_gap":61.0,"median_created":1965,"p25_created":1965,"p75_created":1965,"min_created":1961,"max_created":1968},{"provider":"Peach Public Libraries","n":159,"median_gap":102,"avg_gap":101.5,"median_created":1924,"p25_created":1924,"p75_created":1926,"min_created":1922,"max_created":1926},{"provider":"Moultrie-Colquitt County Library System","n":146,"median_gap":115,"avg_gap":100.5,"median_created":1911,"p25_created":1906,"p75_created":1942,"min_created":1881,"max_created":1981},{"provider":"Robert W. Woodruff Health Sciences Center. Library","n":145,"median_gap":125,"avg_gap":124.3,"median_created":1901,"p25_created":1859,"p75_created":1944,"min_created":1826,"max_created":1998},{"provider":"Columbus Museum (Columbus, Ga.)","n":143,"median_gap":111,"avg_gap":101.8,"median_created":1915,"p25_created":1908,"p75_created":1940,"min_created":1890,"max_created":1966},{"provider":"University of South Carolina. South Carolina Political Collections","n":139,"median_gap":46,"avg_gap":51.5,"median_created":1980,"p25_created":1965,"p75_created":1983,"min_created":1946,"max_created":1985},{"provider":"Amistad Research Center","n":130,"median_gap":61,"avg_gap":59.9,"median_created":1965,"p25_created":1964,"p75_created":1968,"min_created":1952,"max_created":1999},{"provider":"Museum of Contemporary Art of Georgia","n":129,"median_gap":19,"avg_gap":24.2,"median_created":2007,"p25_created":1997,"p75_created":2011,"min_created":1962,"max_created":2017},{"provider":"University of South Carolina. Libraries","n":129,"median_gap":56,"avg_gap":57.1,"median_created":1970,"p25_created":1965,"p75_created":1973,"min_created":1905,"max_created":1996},{"provider":"James Pendergrast Memorial Library","n":124,"median_gap":40,"avg_gap":39.7,"median_created":1986,"p25_created":1972,"p75_created":1999,"min_created":1949,"max_created":2017},{"provider":"Piedmont College. Library","n":122,"median_gap":69,"avg_gap":67.7,"median_created":1958,"p25_created":1928,"p75_created":1988,"min_created":1913,"max_created":2017},{"provider":"Abraham Baldwin Agricultural College. Libraries","n":120,"median_gap":37,"avg_gap":33.7,"median_created":1989,"p25_created":1989,"p75_created":1995,"min_created":1978,"max_created":2006},{"provider":"Roosevelt Warm Springs Vocational Rehabilitation Campus","n":118,"median_gap":68,"avg_gap":71.9,"median_created":1958,"p25_created":1947,"p75_created":1962,"min_created":1921,"max_created":1982},{"provider":"James Branch Cabell Library. Special Collections and Archives","n":118,"median_gap":35,"avg_gap":36.3,"median_created":1991,"p25_created":1988,"p75_created":2001,"min_created":1922,"max_created":2015},{"provider":"Henderson Library (Georgia Southern University, Statesboro Campus)","n":117,"median_gap":38,"avg_gap":37.7,"median_created":1988,"p25_created":1985,"p75_created":1991,"min_created":1981,"max_created":2009},{"provider":"John Davis Williams Library. Department of Archives and Special Collections","n":115,"median_gap":61,"avg_gap":51.5,"median_created":1965,"p25_created":1957,"p75_created":2001,"min_created":1923,"max_created":2001},{"provider":"Alexander Campbell King Law Library","n":115,"median_gap":11,"avg_gap":50.8,"median_created":2015,"p25_created":1910,"p75_created":2020,"min_created":1831,"max_created":2024},{"provider":"Georgia Council for the Arts","n":108,"median_gap":49,"avg_gap":48.0,"median_created":1977,"p25_created":1973,"p75_created":1984,"min_created":1956,"max_created":1993},{"provider":"Okefenokee Regional Library System","n":106,"median_gap":91,"avg_gap":94.0,"median_created":1936,"p25_created":1912,"p75_created":1950,"min_created":1905,"max_created":1989},{"provider":"Langston Hughes Memorial Library (Lincoln University of Pennsylvania)","n":96,"median_gap":88,"avg_gap":98.8,"median_created":1938,"p25_created":1900,"p75_created":1956,"min_created":1853,"max_created":1973},{"provider":"David M. Rubenstein Rare Book & Manuscript Library","n":94,"median_gap":47,"avg_gap":46.3,"median_created":1980,"p25_created":1971,"p75_created":1982,"min_created":1932,"max_created":2006},{"provider":"University of Georgia. Press","n":93,"median_gap":43,"avg_gap":36.1,"median_created":1983,"p25_created":1962,"p75_created":2021,"min_created":1944,"max_created":2021},{"provider":"Auburn University. Library","n":92,"median_gap":99,"avg_gap":101.6,"median_created":1927,"p25_created":1923,"p75_created":1929,"min_created":1850,"max_created":1980},{"provider":"Russell Library. Special Collections","n":89,"median_gap":83,"avg_gap":88.0,"median_created":1943,"p25_created":1918,"p75_created":1944,"min_created":1906,"max_created":2012},{"provider":"North Carolina Central University","n":87,"median_gap":66,"avg_gap":70.2,"median_created":1960,"p25_created":1940,"p75_created":1967,"min_created":1890,"max_created":2008},{"provider":"Baylor University. Libraries. Digital Collections","n":87,"median_gap":49,"avg_gap":49.0,"median_created":1977,"p25_created":1974,"p75_created":1981,"min_created":1963,"max_created":1989},{"provider":"Paine College. Library","n":81,"median_gap":88,"avg_gap":92.3,"median_created":1938,"p25_created":1923,"p75_created":1945,"min_created":1882,"max_created":1980},{"provider":"Thomasville History Center","n":81,"median_gap":89,"avg_gap":94.3,"median_created":1937,"p25_created":1905,"p75_created":1963,"min_created":1840,"max_created":1976},{"provider":"University of California Libraries","n":77,"median_gap":118,"avg_gap":126.7,"median_created":1908,"p25_created":1892,"p75_created":1914,"min_created":1830,"max_created":1922},{"provider":"Clark Atlanta University","n":73,"median_gap":21,"avg_gap":22.1,"median_created":2005,"p25_created":1995,"p75_created":2016,"min_created":1944,"max_created":2020},{"provider":"Kaye Kole Genealogy Room, Bull Street Library","n":67,"median_gap":113,"avg_gap":110.0,"median_created":1913,"p25_created":1896,"p75_created":1937,"min_created":1871,"max_created":1962},{"provider":"Morehouse School of Medicine","n":66,"median_gap":35,"avg_gap":34.2,"median_created":1993,"p25_created":1982,"p75_created":2002,"min_created":1976,"max_created":2009},{"provider":"Georgia Capitol Museum","n":66,"median_gap":54,"avg_gap":52.6,"median_created":1974,"p25_created":1966,"p75_created":1990,"min_created":1908,"max_created":2006},{"provider":"Georgia Trust for Historic Preservation","n":66,"median_gap":28,"avg_gap":36.7,"median_created":1998,"p25_created":1973,"p75_created":1998,"min_created":1968,"max_created":1998},{"provider":"Morehouse College (Atlanta, Ga.)","n":64,"median_gap":36,"avg_gap":36.5,"median_created":1991,"p25_created":1974,"p75_created":2012,"min_created":1923,"max_created":2021},{"provider":"Albin O. Kuhn Library & Gallery. Special Collections Department","n":63,"median_gap":68,"avg_gap":68.0,"median_created":1958,"p25_created":1958,"p75_created":1958,"min_created":1958,"max_created":1958},{"provider":"Regional African American Museum of Northeast GA, Inc","n":63,"median_gap":32,"avg_gap":42.3,"median_created":1994,"p25_created":1959,"p75_created":2008,"min_created":1907,"max_created":2019},{"provider":"College of Coastal Georgia. Library","n":62,"median_gap":43,"avg_gap":39.5,"median_created":1984,"p25_created":1974,"p75_created":1999,"min_created":1965,"max_created":2012},{"provider":"Grambling State University Library","n":61,"median_gap":42,"avg_gap":46.0,"median_created":1984,"p25_created":1951,"p75_created":1997,"min_created":1951,"max_created":2009},{"provider":"University of Florida. Libraries","n":60,"median_gap":84,"avg_gap":81.8,"median_created":1942,"p25_created":1939,"p75_created":1943,"min_created":1936,"max_created":2013},{"provider":"Chestatee Regional Library System","n":56,"median_gap":105,"avg_gap":104.9,"median_created":1922,"p25_created":1900,"p75_created":1934,"min_created":1880,"max_created":1959},{"provider":"Frank H. McClung Museum of Natural History and Culture","n":54,"median_gap":46,"avg_gap":46.0,"median_created":1980,"p25_created":1974,"p75_created":1993,"min_created":1967,"max_created":1993},{"provider":"University of Miami. Library. Special Collections","n":52,"median_gap":67,"avg_gap":65.2,"median_created":1960,"p25_created":1956,"p75_created":1967,"min_created":1907,"max_created":2002},{"provider":"State Library of Pennsylvania","n":51,"median_gap":167,"avg_gap":155.4,"median_created":1859,"p25_created":1848,"p75_created":1905,"min_created":1832,"max_created":1917},{"provider":"Proctor Library","n":50,"median_gap":62,"avg_gap":53.4,"median_created":1964,"p25_created":1964,"p75_created":1964,"min_created":1963,"max_created":2013}];
+
+// Images
+const IMAGES = [
+  { year: 1866, title: '"Convention of Freedmen Discussing Their Political Rights"', provider: 'Alabama Dept. of Archives and History', thumb: 'https://dlg.galileo.usg.edu/do-th:aar_alabamaphoto_20003', url: 'http://digital.archives.alabama.gov/cdm/ref/collection/photo/id/20003' },
+  { year: 1872, title: 'Members of the Alabama Reconstruction Legislature, steps of the Capitol', provider: 'Alabama Dept. of Archives and History', thumb: 'https://dlg.galileo.usg.edu/do-th:aar_alabamaphoto_6285', url: 'http://digital.archives.alabama.gov/cdm/ref/collection/photo/id/6285' },
+  { year: 1887, title: 'Photograph of African American educators, 1887', provider: 'Auburn Avenue Research Library', thumb: 'https://dlg.galileo.usg.edu/do-th:dlg_aaed_aarl94-006-001', url: 'https://dlg.galileo.usg.edu/id:dlg_aaed_aarl94-006-001' },
+  { year: 1897, title: 'Rural school, Belmont School, Gainesville', provider: 'Hall County Library System', thumb: 'https://dlg.galileo.usg.edu/do-th:hall_hchp_0274', url: 'https://dlg.galileo.usg.edu/id:hall_hchp_0274' },
+  { year: 1901, title: 'Indian cessions in Georgia', provider: 'University of Georgia Map and Government Information Library', thumb: 'https://dlg.galileo.usg.edu/do-th:gyca_mmap_gen-028', url: 'https://dlg.usg.edu/record/gyca_mmap_gen-028' },
+  { year: 1910, title: 'Martina, Savannah (baseball)', provider: 'Richard B. Russell Library for Political Research and Studies', thumb: 'https://dlg.galileo.usg.edu/do-th:gych_bball_t210-series-1-savannah-martina', url: 'https://dlg.usg.edu/record/gych_bball_t210-series-1-savannah-martina' },
+  { year: 1968, title: 'CSU Students, 1968', provider: 'Columbus State University Archives', thumb: 'https://dlg.galileo.usg.edu/do-th:columbus_mc5_3158', url: 'http://digitalarchives.columbusstate.edu/items/show/3158' },
+  { year: 1972, title: "Women's Volleyball Team, 1972", provider: 'Columbus State University Archives', thumb: 'https://dlg.galileo.usg.edu/do-th:columbus_mc5_2843', url: 'http://digitalarchives.columbusstate.edu/items/show/2843' },
+];
+
+// ── HELPERS ──────────────────────────────────────────────────────────────────
+
+function smooth3(arr) {
+  return arr.map((_,i) => {
+    const w = arr.slice(Math.max(0,i-1), i+2);
+    return w.reduce((a,b)=>a+b,0)/w.length;
+  });
+}
+
+function instType(name) {
+  const n = name.toLowerCase();
+  if (n.includes('hbcu') || n.includes('morehouse') || n.includes('spelman') ||
+      n.includes('clark atlanta') || n.includes('fisk') || n.includes('paine') ||
+      n.includes('grambling') || n.includes('lincoln univ') || n.includes('langston hughes') ||
+      n.includes('virginia state') || n.includes('asa h. gordon') ||
+      n.includes('north carolina central') || n.includes('auburn avenue') ||
+      n.includes('amistad') || n.includes('regional african american')) return 'hbcu';
+  if (n.includes('county') || n.includes('municipal') || n.includes('city of') ||
+      n.includes('watershed') || n.includes('fulton county schools') ||
+      n.includes('georgia council') || n.includes('georgia capitol') ||
+      n.includes('state library')) return 'public';
+  if (n.includes('museum') || n.includes('history center') || n.includes('historical society') ||
+      n.includes('folklife') || n.includes('trust for historic')) return 'museum';
+  if (n.includes('theological') || n.includes('theology') || n.includes('society of mary')) return 'religious';
+  if (n.includes('law library') || n.includes('health sciences') ||
+      n.includes('medical') || n.includes('school of medicine')) return 'professional';
+  if (n.includes('library of congress') || n.includes('hathitrust') ||
+      n.includes('national agricultural') || n.includes('duke univ') ||
+      n.includes('emory')) return 'research';
+  return 'academic';
+}
+
+const TYPE_META = {
+  academic:     { label: 'Academic library',              color: '#2c5f8a' },
+  hbcu:         { label: 'HBCU / Black institution',      color: '#a03a10' },
+  public:       { label: 'Public library / Gov. archive', color: '#2a6b3a' },
+  museum:       { label: 'Museum / Historical society',   color: '#6a3a8a' },
+  religious:    { label: 'Religious institution',         color: '#8a6a10' },
+  professional: { label: 'Professional / Medical',        color: '#8a2a4a' },
+  research:     { label: 'Major research / National',     color: '#1a6a6a' },
+};
+
+const FMT_META = {
+  image:        { label: 'Image',        color: '#c4824a' },
+  text:         { label: 'Text',         color: '#5a8a6a' },
+  sound:        { label: 'Sound',        color: '#6a7ab8' },
+  moving_image: { label: 'Moving image', color: '#9a6aaa' },
+};
+
+function tip(name, rows) {
+  document.getElementById('tipName').textContent = name;
+  document.getElementById('tipGrid').innerHTML = rows.map(([l,v,hi]) =>
+    `<div class="tip-lbl">${l}</div><div class="tip-val${hi?' hi':''}">${v}</div>`
+  ).join('');
+  document.getElementById('tip').classList.add('on');
+}
+
+function moveTip(event) {
+  const t = document.getElementById('tip');
+  const x = Math.min(event.clientX + 18, window.innerWidth - 320);
+  t.style.left = x + 'px';
+  t.style.top  = (event.clientY - 16) + 'px';
+}
+
+function hideTip() { document.getElementById('tip').classList.remove('on'); }
+
+function setActive(btn, ids) {
+  ids.forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('active'); });
+  btn.classList.add('active');
+}
+
+// ── CHART 1: FORMAT STREAMGRAPH ───────────────────────────────────────────────
+(function() {
+  const YEARS = Object.keys(FMT_RAW).map(Number).sort((a,b)=>a-b);
+  const KEYS  = ['image','text','sound','moving_image'];
+
+  const sm = {};
+  KEYS.forEach(k => {
+    const v = smooth3(YEARS.map(y => FMT_RAW[y][k]));
+    YEARS.forEach((y,i) => { sm[y] = sm[y]||{}; sm[y][k] = v[i]; });
+  });
+  const crSm = smooth3(YEARS.map(y => FMT_RAW[y].civil_rights));
+  YEARS.forEach((y,i) => { sm[y].civil_rights = crSm[i]; });
+
+  const stackData = YEARS.map(y => ({ year:y, ...sm[y] }));
+
+  const svgEl = document.getElementById('fmtChart');
+  const M = {top:20,right:20,bottom:36,left:50};
+  const W = svgEl.parentElement.clientWidth;
+  const H = Math.max(280, Math.min(420, W*0.38));
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+
+  const svg = d3.select('#fmtChart').attr('width',W).attr('height',H);
+  const g = svg.append('g').attr('transform',`translate(${M.left},${M.top})`);
+  svg.append('defs').append('clipPath').attr('id','fmtClip')
+    .append('rect').attr('width',iW).attr('height',iH+4).attr('y',-2);
+
+  const clipG = g.append('g').attr('clip-path','url(#fmtClip)');
+  const streamsG = clipG.append('g');
+  const crG = clipG.append('g');
+  const annotG = g.append('g');
+
+  const x = d3.scaleLinear().domain([1860,2000]).range([0,iW]);
+  const y = d3.scaleLinear().range([iH,0]);
+  const xAxisG = g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`);
+  const yAxisG = g.append('g').attr('class','axis');
+
+  let offsetMode = 'silhouette', crOn = true;
+
+  function getStack() {
+    return d3.stack().keys(KEYS)
+      .offset(offsetMode==='silhouette'?d3.stackOffsetSilhouette:offsetMode==='expand'?d3.stackOffsetExpand:d3.stackOffsetNone)
+      .order(d3.stackOrderInsideOut);
+  }
+
+  const area = d3.area()
+    .x(d=>x(d.data.year)).y0(d=>y(d[0])).y1(d=>y(d[1]))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+
+  const crLine = d3.line().x(d=>x(d.year)).y(d=>y(d.cr)).curve(d3.curveCatmullRom.alpha(0.5));
+  const crArea = d3.area().x(d=>x(d.year)).y0(iH).y1(d=>y(d.cr)).curve(d3.curveCatmullRom.alpha(0.5));
+
+  const ANNOTS = [
+    {year:1864,label:'Civil War'},
+    {year:1940,label:'FSA photography'},
+    {year:1957,label:'Peabody Archive'},
+    {year:1965,label:'Voting Rights Act'},
+  ];
+
+  function drawFmt(animate=false) {
+    const series = getStack()(stackData);
+    const vals = series.flatMap(l=>l.flatMap(d=>[d[0],d[1]]));
+    y.domain([d3.min(vals),d3.max(vals)]);
+    x.domain([1860,2000]);
+    xAxisG.call(d3.axisBottom(x).tickFormat(d3.format('d')).ticks(8).tickSize(4));
+    yAxisG.call(offsetMode==='expand'?d3.axisLeft(y).ticks(4).tickFormat(d3.format('.0%')).tickSize(3):d3.axisLeft(y).ticks(4).tickSize(3));
+
+    const paths = streamsG.selectAll('.stream').data(series,d=>d.key);
+    paths.enter().append('path').attr('class','stream')
+      .attr('fill',d=>`${FMT_META[d.key].color}`)
+      .attr('stroke','var(--bg)').attr('stroke-width',0.5)
+      .on('mousemove',function(event,d){
+        const [mx]=d3.pointer(event,g.node());
+        const yr=Math.round(x.invert(mx));
+        const row=stackData.find(r=>r.year===yr); if(!row) return;
+        moveTip(event);
+        tip(FMT_META[d.key].label+' · '+yr, [
+          ['Items (smoothed)', Math.round(row[d.key]).toLocaleString(), false],
+          ['Civil rights overlay', Math.round(row.civil_rights).toLocaleString(), true],
+        ]);
+        streamsG.classed('streams-dim',true);
+        d3.select(this).classed('hi',true);
+      })
+      .on('mouseleave',function(){
+        hideTip();
+        streamsG.classed('streams-dim',false);
+        streamsG.selectAll('.stream').classed('hi',false);
+      })
+      .merge(paths).transition().duration(animate?450:0).attr('d',area);
+    paths.exit().remove();
+
+    // CR overlay
+    if(crOn) {
+      const maxCR = d3.max(stackData,d=>d.civil_rights);
+      const [yMin,yMax] = y.domain();
+      const span = Math.abs(yMax-yMin);
+      const crD = stackData.map(d=>({ year:d.year, cr: y.invert(iH-(d.civil_rights/maxCR)*iH*0.65) }));
+      crG.selectAll('.cr-area').data([crD]).join('path').attr('class','cr-area').transition().duration(animate?450:0).attr('d',crArea);
+      crG.selectAll('.cr-line').data([crD]).join('path').attr('class','cr-line').transition().duration(animate?450:0).attr('d',crLine);
+    } else {
+      crG.selectAll('*').remove();
+    }
+
+    // Annotations
+    const ag = annotG.selectAll('.ag').data(ANNOTS,d=>d.year);
+    const ae = ag.enter().append('g').attr('class','ag');
+    ae.append('line').attr('class','ann-line').attr('y1',0).attr('y2',iH);
+    ae.append('text').attr('class','ann-txt').attr('y',-5).attr('text-anchor','middle');
+    ae.merge(ag).attr('transform',d=>`translate(${x(d.year)},0)`).select('text').text(d=>d.label);
+    ag.exit().remove();
+  }
+
+  drawFmt();
+
+  // Legend
+  const legEl = document.getElementById('fmtLegend');
+  Object.entries(FMT_META).forEach(([k,m]) => {
+    const el = document.createElement('div'); el.className='leg';
+    el.innerHTML=`<div class="leg-sw" style="background:${m.color}"></div><span class="leg-txt">${m.label}</span>`;
+    el.addEventListener('click',()=>{
+      const d=streamsG.classed('streams-dim');
+      streamsG.classed('streams-dim',!d);
+      streamsG.selectAll('.stream').classed('hi',false);
+      if(!d) streamsG.selectAll('.stream').each(function(dd){ if(dd.key===k) d3.select(this).classed('hi',true); });
+    });
+    legEl.appendChild(el);
+  });
+  // CR leg
+  const crLeg = document.createElement('div'); crLeg.className='leg';
+  crLeg.innerHTML=`<div class="leg-sw" style="background:#b8860b;height:3px;margin-top:2px;"></div><span class="leg-txt" style="color:#b8860b">Civil rights / African American</span>`;
+  legEl.appendChild(crLeg);
+
+  // Controls
+  document.getElementById('fmtSil').addEventListener('click',function(){ offsetMode='silhouette'; setActive(this,['fmtSil','fmtProp','fmtAbs']); drawFmt(true); });
+  document.getElementById('fmtProp').addEventListener('click',function(){ offsetMode='expand'; setActive(this,['fmtSil','fmtProp','fmtAbs']); drawFmt(true); });
+  document.getElementById('fmtAbs').addEventListener('click',function(){ offsetMode='stack'; setActive(this,['fmtSil','fmtProp','fmtAbs']); drawFmt(true); });
+  document.getElementById('crToggle').addEventListener('click',function(){
+    crOn=!crOn;
+    this.textContent=crOn?'On':'Off';
+    this.classList.toggle('active',crOn);
+    drawFmt(true);
+  });
+})();
+
+// ── CHART 2: LAG SCATTERPLOT ──────────────────────────────────────────────────
+(function() {
+  const svgEl = document.getElementById('lagChart');
+  const M = {top:22,right:30,bottom:52,left:66};
+  const W = svgEl.parentElement.clientWidth;
+  const H = Math.max(380,Math.min(540,W*0.5));
+  const iW = W-M.left-M.right, iH = H-M.top-M.bottom;
+
+  const svg = d3.select('#lagChart').attr('width',W).attr('height',H);
+  const g = svg.append('g').attr('transform',`translate(${M.left},${M.top})`);
+
+  const x = d3.scaleLinear().domain([d3.min(LAG_DATA,d=>d.median_created)-8, d3.max(LAG_DATA,d=>d.median_created)+8]).range([0,iW]);
+  const y = d3.scaleLinear().domain([0, d3.max(LAG_DATA,d=>d.median_gap)+12]).range([iH,0]);
+  const r = d3.scaleSqrt().domain([0,d3.max(LAG_DATA,d=>d.n)]).range([4,28]);
+  const colorLag = d3.scaleSequential().domain([0,d3.max(LAG_DATA,d=>d.median_gap)]).interpolator(d3.interpolateRgb('#5a9e7a','#8b1a00'));
+
+  g.append('g').attr('class','grid').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).tickSize(-iH).tickFormat('').ticks(8));
+  g.append('g').attr('class','grid').call(d3.axisLeft(y).tickSize(-iW).tickFormat('').ticks(7));
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${iH})`).call(d3.axisBottom(x).tickFormat(d3.format('d')).ticks(8).tickSize(5));
+  g.append('g').attr('class','axis').call(d3.axisLeft(y).ticks(7).tickSize(5).tickFormat(d=>d+' yr'));
+
+  g.append('text').attr('class','axis-lbl').attr('x',iW/2).attr('y',iH+44).attr('text-anchor','middle').text('MEDIAN CREATION YEAR');
+  g.append('text').attr('class','axis-lbl').attr('transform','rotate(-90)').attr('x',-iH/2).attr('y',-52).attr('text-anchor','middle').text('MEDIAN YEARS TO INGEST');
+
+  const qx=x(d3.median(LAG_DATA,d=>d.median_created)), qy=y(d3.median(LAG_DATA,d=>d.median_gap));
+  [{x:qx*0.3,y:qy*0.22,t:'old & long wait'},{x:qx+(iW-qx)*0.55,y:qy*0.22,t:'recent & quick'},{x:qx*0.3,y:qy+(iH-qy)*0.88,t:'old, digitized quickly'}]
+    .forEach(q=>g.append('text').attr('class','quad-lbl').attr('x',q.x).attr('y',q.y).attr('text-anchor','middle').text(q.t));
+
+  const dotsG = g.append('g'), labsG = g.append('g');
+  let colorMode='lag', labelMode='none', searchTerm='';
+
+  function dotColor(d) { return colorMode==='lag' ? colorLag(d.median_gap) : (TYPE_META[instType(d.provider)]?.color||'#5a5248'); }
+  function dotOpacity(d) { if(searchTerm) return d.provider.toLowerCase().includes(searchTerm.toLowerCase())?1:0.08; return 0.85; }
+
+  function shortName(n) {
+    return n.replace('University','Univ.').replace('. Special Collections','').replace(' Special Collections','')
+      .replace('. Libraries','').replace('. Library','').replace(' and Rare Book Library','')
+      .replace(' on African-American Culture and History','').replace(' Regional Library',' Reg. Lib.')
+      .replace(', Middle Georgia Regional Library','').replace(' (Wesleyan College)','')
+      .replace('. Odum Library. Archives and Special Collections','')
+      .replace(' for Political Research and Studies','').replace('. General Libraries','')
+      .replace('. Archives and Special Collections','').replace('. Archives','')
+      .replace(' and Government Information Library',' Map Lib.')
+      .replace('. Department of Archives, Rare Books and Records Management','')
+      .replace('Walter J. Brown Media Archives and Peabody Awards Collection','Peabody Awards')
+      .replace('Auburn Avenue Research Library','Auburn Ave Research Lib.')
+      .replace('Historically Black Colleges and Universities (HBCU) Library Alliance','HBCU Library Alliance')
+      .replace('Robert W. Woodruff Library','AUC Woodruff Library').replace('(U.S.)','').trim();
+  }
+
+  function renderLag() {
+    const dots = dotsG.selectAll('.dot').data(LAG_DATA,d=>d.provider);
+    dots.enter().append('circle').attr('class','dot')
+      .attr('cx',d=>x(d.median_created)).attr('cy',d=>y(d.median_gap)).attr('r',d=>r(d.n))
+      .attr('stroke','var(--bg)').attr('stroke-width',1.5)
+      .on('mousemove',function(event,d){
+        dotsG.selectAll('.dot').attr('opacity',0.15);
+        d3.select(this).attr('opacity',1).raise();
+        moveTip(event);
+        tip(d.provider,[
+          ['Median created',d.median_created+'',false],
+          ['Median lag',d.median_gap+' years',true],
+          ['Avg lag',d.avg_gap+' years',false],
+          ['Items',d.n.toLocaleString(),false],
+          ['Span',d.min_created+'–'+d.max_created,false],
+          ['Type',TYPE_META[instType(d.provider)]?.label||'—',false],
+        ]);
+      })
+      .on('mouseleave',function(){
+        dotsG.selectAll('.dot').attr('opacity',d=>dotOpacity(d));
+        hideTip();
+      })
+      .merge(dots).transition().duration(320)
+      .attr('fill',d=>dotColor(d)).attr('opacity',d=>dotOpacity(d));
+    dots.exit().remove();
+
+    labsG.selectAll('.dot-lbl').remove();
+    let toLabel = [];
+    if(labelMode==='all') toLabel=LAG_DATA;
+    else if(labelMode==='top15') toLabel=[...LAG_DATA].sort((a,b)=>b.n-a.n).slice(0,15);
+    if(searchTerm) {
+      const m=LAG_DATA.filter(d=>d.provider.toLowerCase().includes(searchTerm.toLowerCase()));
+      const ex=new Set(toLabel.map(d=>d.provider));
+      m.forEach(d=>{ if(!ex.has(d.provider)) toLabel.push(d); });
+    }
+    toLabel.forEach(d=>{
+      labsG.append('text').attr('class','dot-lbl')
+        .attr('x',x(d.median_created)+r(d.n)+4).attr('y',y(d.median_gap)+4)
+        .text(shortName(d.provider));
+    });
+  }
+
+  renderLag();
+
+  // Legend
+  function buildLagLegend() {
+    const el = document.getElementById('lagLegend'); el.innerHTML='';
+    if(colorMode==='lag') {
+      const ns='http://www.w3.org/2000/svg', sw=document.createElementNS(ns,'svg');
+      sw.setAttribute('width','180'); sw.setAttribute('height','20');
+      const defs=document.createElementNS(ns,'defs'), grad=document.createElementNS(ns,'linearGradient');
+      grad.setAttribute('id','lagGradR');
+      [0,.25,.5,.75,1].forEach(t=>{ const s=document.createElementNS(ns,'stop'); s.setAttribute('offset',t); s.setAttribute('stop-color',colorLag(t*d3.max(LAG_DATA,d=>d.median_gap))); grad.appendChild(s); });
+      defs.appendChild(grad); sw.appendChild(defs);
+      const rect=document.createElementNS(ns,'rect'); rect.setAttribute('x','0'); rect.setAttribute('y','4'); rect.setAttribute('width','130'); rect.setAttribute('height','10'); rect.setAttribute('fill','url(#lagGradR)'); sw.appendChild(rect);
+      ['0 yr','~80 yr','167 yr'].forEach((lbl,i)=>{ const t=document.createElementNS(ns,'text'); t.setAttribute('x',i*65); t.setAttribute('y',20); t.setAttribute('font-family','Source Code Pro,monospace'); t.setAttribute('font-size','9'); t.setAttribute('fill','#3d3428'); t.setAttribute('text-anchor',i===2?'end':i===1?'middle':'start'); t.textContent=lbl; sw.appendChild(t); });
+      el.appendChild(sw);
+    } else {
+      Object.entries(TYPE_META).forEach(([k,m])=>{
+        const item=document.createElement('div'); item.className='leg';
+        item.innerHTML=`<div class="leg-dot-sm" style="background:${m.color}"></div><span class="leg-txt">${m.label}</span>`;
+        el.appendChild(item);
+      });
+    }
+  }
+
+  buildLagLegend();
+
+  document.getElementById('lagColorLag').addEventListener('click',function(){ colorMode='lag'; setActive(this,['lagColorLag','lagColorType']); buildLagLegend(); renderLag(); });
+  document.getElementById('lagColorType').addEventListener('click',function(){ colorMode='type'; setActive(this,['lagColorLag','lagColorType']); buildLagLegend(); renderLag(); });
+  document.getElementById('lagLblNone').addEventListener('click',function(){ labelMode='none'; setActive(this,['lagLblNone','lagLblTop','lagLblAll']); renderLag(); });
+  document.getElementById('lagLblTop').addEventListener('click',function(){ labelMode='top15'; setActive(this,['lagLblNone','lagLblTop','lagLblAll']); renderLag(); });
+  document.getElementById('lagLblAll').addEventListener('click',function(){ labelMode='all'; setActive(this,['lagLblNone','lagLblTop','lagLblAll']); renderLag(); });
+  document.getElementById('lagSearch').addEventListener('input',function(){ searchTerm=this.value; dotsG.selectAll('.dot').attr('opacity',d=>dotOpacity(d)); renderLag(); });
+})();
+
+// ── CHART 3: SWARM BY TYPE ────────────────────────────────────────────────────
+(function() {
+  const TYPES = Object.keys(TYPE_META);
+  const byType = {};
+  TYPES.forEach(t => { byType[t]=[]; });
+  LAG_DATA.forEach(d => { const t=instType(d.provider); if(byType[t]) byType[t].push(d); });
+
+  const svgEl = document.getElementById('swarmChart');
+  const M = {top:16,right:24,bottom:36,left:200};
+  const W = svgEl.parentElement.clientWidth;
+  const rowH = 52;
+  const H = TYPES.length * rowH + M.top + M.bottom;
+  const iW = W-M.left-M.right;
+
+  const svg = d3.select('#swarmChart').attr('width',W).attr('height',H);
+  const g = svg.append('g').attr('transform',`translate(${M.left},${M.top})`);
+
+  const x = d3.scaleLinear().domain([0, d3.max(LAG_DATA,d=>d.median_gap)+10]).range([0,iW]);
+  const r = d3.scaleSqrt().domain([0,d3.max(LAG_DATA,d=>d.n)]).range([3,18]);
+
+  g.append('g').attr('class','grid').attr('transform',`translate(0,${TYPES.length*rowH})`).call(d3.axisBottom(x).tickSize(-(TYPES.length*rowH)).tickFormat('').ticks(7));
+  g.append('g').attr('class','axis').attr('transform',`translate(0,${TYPES.length*rowH})`).call(d3.axisBottom(x).ticks(7).tickSize(4).tickFormat(d=>d+' yr'));
+  g.append('text').attr('class','axis-lbl').attr('x',iW/2).attr('y',TYPES.length*rowH+32).attr('text-anchor','middle').text('MEDIAN DIGITIZATION LAG');
+
+  let activeType = null;
+
+  TYPES.forEach((type, ti) => {
+    const items = byType[type];
+    const cy = ti * rowH + rowH/2;
+    const meta = TYPE_META[type];
+
+    // Row label — clickable
+    const lbl = g.append('text')
+      .attr('x',-12).attr('y',cy+5)
+      .attr('text-anchor','end')
+      .attr('font-family','Source Code Pro, monospace')
+      .attr('font-size','11')
+      .attr('font-weight','500')
+      .attr('fill', meta.color)
+      .attr('cursor','pointer')
+      .text(meta.label)
+      .on('click',() => toggleType(type));
+
+    // Row line
+    g.append('line').attr('x1',0).attr('x2',iW).attr('y1',cy).attr('y2',cy)
+      .attr('stroke','var(--rule-lt)').attr('stroke-width',1);
+
+    // Simple beeswarm: sort by lag, spread vertically within row
+    const sorted = [...items].sort((a,b)=>a.median_gap-b.median_gap);
+    const placed = [];
+
+    sorted.forEach(d => {
+      const cx = x(d.median_gap);
+      const rad = r(d.n);
+      let dy = 0, step = 1, placed_ok = false;
+      for (let attempt = 0; attempt < 30; attempt++) {
+        const testY = cy + dy;
+        const ok = placed.every(p => {
+          const dx2 = (cx-p.cx)**2, dy2=(testY-p.cy)**2;
+          return Math.sqrt(dx2+dy2) >= (rad+p.r+1.5);
+        });
+        if(ok) { placed.push({cx,cy:testY,r:rad,d}); placed_ok=true; break; }
+        dy = step%2===0 ? step/2*6 : -Math.ceil(step/2)*6;
+        step++;
+      }
+      if(!placed_ok) placed.push({cx,cy,r:rad,d});
+    });
+
+    placed.forEach(({cx,cy:dotY,r:dotR,d}) => {
+      g.append('circle').attr('class','swarm-dot')
+        .attr('cx',cx).attr('cy',dotY).attr('r',dotR)
+        .attr('fill',meta.color).attr('opacity',0.75)
+        .attr('stroke','var(--bg)').attr('stroke-width',1)
+        .attr('data-type',type)
+        .on('mousemove',function(event){
+          moveTip(event);
+          tip(d.provider,[
+            ['Median lag',d.median_gap+' years',true],
+            ['Median created',d.median_created+'',false],
+            ['Items',d.n.toLocaleString(),false],
+            ['Span',d.min_created+'–'+d.max_created,false],
+          ]);
+          d3.selectAll('.swarm-dot').attr('opacity',0.1);
+          d3.select(this).attr('opacity',1);
+        })
+        .on('mouseleave',function(){
+          hideTip();
+          applyTypeFilter();
+        });
+    });
+  });
+
+  function toggleType(type) {
+    activeType = (activeType===type) ? null : type;
+    applyTypeFilter();
+  }
+
+  function applyTypeFilter() {
+    d3.selectAll('.swarm-dot').attr('opacity',function(){
+      const t = d3.select(this).attr('data-type');
+      if(!activeType) return 0.75;
+      return t===activeType ? 0.9 : 0.07;
+    });
+  }
+
+  // Legend
+  const legEl = document.getElementById('swarmLegend');
+  Object.entries(TYPE_META).forEach(([k,m]) => {
+    const item=document.createElement('div'); item.className='leg';
+    item.style.cursor='pointer';
+    const dot=document.createElement('div'); dot.className='leg-dot-sm'; dot.style.background=m.color;
+    const txt=document.createElement('span'); txt.className='leg-txt'; txt.textContent=m.label;
+    item.appendChild(dot); item.appendChild(txt);
+    item.addEventListener('click',()=>{
+      toggleType(k);
+      legEl.querySelectorAll('.leg-txt').forEach(el=>el.classList.toggle('dimmed',activeType&&el.textContent!==m.label));
+      if(!activeType) legEl.querySelectorAll('.leg-txt').forEach(el=>el.classList.remove('dimmed'));
+    });
+    legEl.appendChild(item);
+  });
+})();
+
+// ── IMAGES ────────────────────────────────────────────────────────────────────
+const grid = document.getElementById('imageGrid');
+IMAGES.forEach(img => {
+  const card = document.createElement('div'); card.className='img-card';
+  card.innerHTML = `
+    <a href="${img.url}" target="_blank" rel="noopener">
+      <div class="img-wrap">
+        <img src="${img.thumb}" alt="${img.title}" class="loading"
+             onload="this.classList.remove('loading');this.classList.add('loaded')"
+             onerror="this.parentElement.style.background='var(--rule-lt)'">
+      </div>
+      <div class="img-meta">
+        <div class="img-year">${img.year}</div>
+        <div class="img-title">${img.title}</div>
+        <div class="img-provider">${img.provider}</div>
+      </div>
+    </a>`;
+  grid.appendChild(card);
+});
+
+// ── METHODOLOGY TOGGLE ────────────────────────────────────────────────────────
+document.getElementById('methodToggle').addEventListener('click',function(){
+  const body=document.getElementById('methodBody');
+  const arrow=document.getElementById('methodArrow');
+  const open=body.classList.toggle('open');
+  arrow.classList.toggle('open',open);
+  arrow.textContent=open?'▼':'▶';
+});
+</script>
+</body>
+</html>
